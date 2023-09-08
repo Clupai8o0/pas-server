@@ -19,6 +19,15 @@ CORS(app, resources={r"*": {"origins": "http://localhost:3000"}})
 def home():
   return 'Hello, World!'
 
+@app.route('/test')
+def test():
+  try:
+    print("hello")
+    raise Exception("ok")
+  except Exception as err:
+    print(err)
+    return jsonify(resp(False, "Could not lol", str(err)))
+
 # Create User
 @app.route("/api/create-user", methods=['POST'])
 def create_user():
@@ -46,7 +55,7 @@ def create_user():
     }))
   except Exception as err:
     print(err)
-    return jsonify(resp(False, "There was an error while trying to create user")), 500
+    return jsonify(resp(False, "There was an error while trying to create user"), str(err)), 500
 
 # Login
 @app.route("/api/login", methods=['POST'])
@@ -75,7 +84,7 @@ def create_password():
     return jsonify(resp(True, "Successfully created password")), 201
   except Exception as err:
     print(err)
-    return jsonify(resp(False, "There was an error while trying to create password")), 500
+    return jsonify(resp(False, "There was an error while trying to create password", str(err))), 500
 
 @app.route("/api/get-passwords", methods=['GET'])
 def get_passwords():
@@ -90,7 +99,7 @@ def get_passwords():
       raise Exception('expired')
   except Exception as err:
     print(err)
-    return jsonify(resp(False, "There was an error while trying to get passwords")), 500
+    return jsonify(resp(False, "There was an error while trying to get passwords", str(err))), 500
 
 @app.route("/api/delete-password", methods=['DELETE'])
 def deletePassword():
