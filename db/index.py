@@ -31,12 +31,12 @@ def createUser(id, ip, username, email, password, hash, hashKey):
 		"username": username,
 		"email": email,
 		"password": hash,
-		"key": hashKey.decode()
+		"key": hashKey
 	}).execute()
 	token = jwt.encode({
 		"id": f"{id}",
 		"supabase-token": f"{session[1].access_token}", 
-		"hash-key": hashKey.decode(),
+		"hash-key": hashKey,
 		"exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(days=3)
 	}, os.getenv('SECRET'), algorithm="HS256")
 

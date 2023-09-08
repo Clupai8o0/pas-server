@@ -11,7 +11,7 @@ def decrypt(hash):
   return fernet.decrypt(hash).decode()
 
 def generateKey():
-  return Fernet.generate_key()
+  return (Fernet.generate_key()).decode()[:-1]
 
 #todo: organize and change these names they're annoying
 def hashPw(password):
