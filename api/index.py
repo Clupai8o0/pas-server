@@ -17,7 +17,7 @@ CORS(app, resources={r"*": {"origins": "http://localhost:3000"}})
 
 @app.route('/')
 def home():
-	return 'Hello, World!'
+  return 'Hello, World!'
 
 # Create User
 @app.route("/api/create-user", methods=['POST'])
@@ -28,7 +28,7 @@ def create_user():
     email = request.json['email']
     username = request.json['username']
     password = request.json['password']
-    print("Hello")
+    
     hash = hashPw(password)
     key = generateKey()
     userId = uuid.uuid4()
@@ -85,7 +85,7 @@ def get_passwords():
     valid, obj = verifySession(session)
 
     if valid:
-      return jsonify(resp(True, "Successfully GET passwords of user", getPasswords(obj)))
+      return jsonify(resp(True, "Successfully GET passwords of user", getPasswords(obj)[1]))
     else: 
       raise Exception('expired')
   except Exception as err:
@@ -107,6 +107,6 @@ def searchPasswords():
 
 # @app.route('/convert/<string:fromType>/<string:toType>/<string:value>', methods=['GET'])
 # def convert(fromType, toType, value):
-# 	response = jsonify({})
-# 	response.headers.add("Access-Control-Allow-Origin", "*")	
-# 	return response
+#   response = jsonify({})
+#   response.headers.add("Access-Control-Allow-Origin", "*")  
+#   return response
