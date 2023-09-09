@@ -5,6 +5,8 @@ import uuid
 
 from dotenv import load_dotenv
 import os
+import jwt
+import datetime
 
 from lib.encrypter import encrypt, decrypt, generateKey, hashPw, checkPw
 from lib.response import resp, verifySession
@@ -20,11 +22,30 @@ CORS()
 def home():
   return 'Hello, World!'
 
-@app.route('/test')
-def test():
+@app.route('/test-1')
+def test1():
   try:
-    print("hello")
-    raise Exception("ok")
+    token = jwt.encode({
+      "user": 123,
+      "exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(days=3)
+    }, os.getenv('SECRET'), algorithm="HS256")
+    return jsonify(resp(True, "Ok here u go", {
+      "session": token,
+      "secret": os.getenv('SECRET')
+    }))
+  except Exception as err:
+    print(err)
+    return jsonify(resp(False, "Could not lol", str(err)))
+
+@app.route('/test-2')
+def test2():
+  try:
+    session = request.json['session']
+    valid, obj = verifySession(session)
+    return jsonify(resp(True, "Ok here u go", {
+      "valid": valid,
+      "obj": obj
+    }))
   except Exception as err:
     print(err)
     return jsonify(resp(False, "Could not lol", str(err)))
