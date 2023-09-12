@@ -25,27 +25,9 @@ def home():
 @app.route('/test-1')
 def test1():
   try:
-    token = jwt.encode({
-      "user": 123,
-      "exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(days=3)
-    }, os.getenv('SECRET'), algorithm="HS256")
-    return jsonify(resp(True, "Ok here u go", {
-      "session": token,
-      "secret": os.getenv('SECRET')
-    }))
-  except Exception as err:
-    print(err)
-    return jsonify(resp(False, "Could not lol", str(err)))
-
-@app.route('/test-2')
-def test2():
-  try:
-    session = request.json['session']
-    valid, obj = verifySession(session)
-    return jsonify(resp(True, "Ok here u go", {
-      "valid": valid,
-      "obj": obj
-    }))
+    auth = request.headers.get('authorization').split(' ')[1]
+    print(auth)
+    return jsonify(resp(True, "ok lol"))
   except Exception as err:
     print(err)
     return jsonify(resp(False, "Could not lol", str(err)))
@@ -111,14 +93,14 @@ def create_password():
 @app.route("/api/get-passwords", methods=['GET'])
 def get_passwords():
   try:
-    session = request.json['session'] # todo: use auth headers for this
+    session = request.headers.get('authorization').split(' ')[1]
 
     valid, obj = verifySession(session)
 
     if valid:
       return jsonify(resp(True, "Successfully GET passwords of user", getPasswords(obj)[1]))
     else: 
-      raise Exception('expired')
+      raise Exception(obj)
   except Exception as err:
     print(err)
     return jsonify(resp(False, "There was an error while trying to get passwords", str(err))), 500
