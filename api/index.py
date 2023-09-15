@@ -11,7 +11,7 @@ import datetime
 from lib.encrypter import encrypt, decrypt, generateKey, hashPw, checkPw
 from lib.response import resp, verifySession
 
-from db.index import createUser, createPassword, getPasswords
+from db.index import createUser, createPassword, getPasswords, loginUser
 
 load_dotenv()
 app = Flask(__name__)
@@ -64,7 +64,19 @@ def create_user():
 # Login
 @app.route("/api/login", methods=['POST'])
 def login():
-  return jsonify({ "success": True })
+  try:
+    ip = request.json['ip']
+    username = request.json['username']
+    password = request.json['password']
+
+    session = loginUser(ip, username, password)
+
+    return jsonify(resp(True, "Successfully logged user", {
+      "session": f"{session}"
+    }))
+  except Exception as err:
+    print(err)
+    return jsonify(resp(False, "There was an error while trying to login user"), str(err)), 500
 
 # Add/Delete/Update/Get/Search  Password
 @app.route("/api/create-password", methods=['POST'])
@@ -104,6 +116,8 @@ def get_passwords():
   except Exception as err:
     print(err)
     return jsonify(resp(False, "There was an error while trying to get passwords", str(err))), 500
+
+# todo: verify session api
 
 @app.route("/api/delete-password", methods=['DELETE'])
 def deletePassword():
