@@ -1,73 +1,46 @@
 import os
-import jwt
-import datetime
-import json
+from datetime import datetime
 
 from supabase import create_client, Client
 
-from lib.encrypter import checkPw
+from lib.encrypter import checkPassword
+from lib.session import createSession
 
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
-# setup tables
-
-# insert some basic values
-
-# create functions for selecting/inserting/updating/deleting
-
-#* Insert
 #* Create user
-def createUser(id, ip, username, email, password, hash, hashKey):
-	# todo: error handling, rename this function
-	# todo:  user already exists error
-
-	user, session = supabase.auth.sign_up({
-		"email": email,
-		"password": password
-	})
-	data, count = supabase.table('users').insert({
-		"id": user[1].id,
-		"ip": json.dumps([ip]),
-		"username": username,
-		"email": email,
-		"password": hash,
-		"key": hashKey
-	}).execute()
-	token = jwt.encode({
-		"id": f"{id}",
-		"supabase-token": f"{session[1].access_token}", 
-		"hash-key": hashKey,
-		"exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(days=3)
-	}, os.getenv('SECRET'), algorithm="HS256")
-
-	return token
+def createUser(userId, ip, username, email, hashedPassword, hashKey):
+	try:
+		supabase.table('users').insert({
+			"id": str(userId),
+			"ip": ip,
+			"username": username,
+			"email": email,
+			"password": hashedPassword,
+			"key": hashKey
+		}).execute()
+	except Exception as err:
+		raise Exception(err.code)
 
 #* Login user
 def loginUser(ip, username, password):
-	data, count = supabase.table('users').select("id, email, username, password").eq("username", username).execute()
+	data, _ = supabase.table('users').select("id, email, password").eq("username", username).execute()
+
 	if len(data[1]) > 0:
 		user = data[1][0]
 
-		if checkPw(password, user['password']):
-			_, session = supabase.auth.sign_in_with_password({ "email": user['email'], "password": password })
-
-			data2, count = supabase.table('users').select("key").eq("username", username).execute()
-			hashKey = data2[1][0]['key']
-
-			token = jwt.encode({
-				"id": f"{id}",
-				"supabase-token": f"{session[1].access_token}", 
-				"hash-key": hashKey,
-				"exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(days=3)
-			}, os.getenv('SECRET'), algorithm="HS256")
-
+		if checkPassword(password, user['password']):
+			data, _ = supabase.table('users').select("key").eq("username", username).execute()
+			hashKey = data[1][0]['key']
 			
+			token = createSession(user['id'], hashKey)
+
 			supabase.table('logins').insert({
 				"token": token,
 				"userId": user['id'],
-				"date": str(datetime.datetime.now()),
+				"date": str(datetime.now()),
 				"ip": ip,
 				"success": True
 			}).execute()
@@ -75,9 +48,9 @@ def loginUser(ip, username, password):
 			return token
 
 		else:
-			supabase.table('login').insert({
+			supabase.table('logins').insert({
 				"userId": user['id'],
-				"date": str(datetime.datetime.now()),
+				"date": str(datetime.now()),
 				"ip": ip,
 				"success": False
 			}).execute()
@@ -86,29 +59,74 @@ def loginUser(ip, username, password):
 	else:	
 		raise Exception("User does not exist")
 
-
-#* Get User
-def getUser():
-	return
-	
-
-#* Passwords
 #* Create Password
-# todo: update policies to give access only to authenticated specific users
-def createPassword(id, title, url, username, email, password):
-	print(id, title, url, username, email, password)
-	data, count = supabase.table('passwords').insert({
-		"userId": id,
-		"title": title,
-		"url": url,
+def createPassword(userId, title, url, username, email, password):
+	data, _ = supabase.table('passwords').insert({
+		"userId": userId,
+		"title": title.lower(),
+		"url": url.lower(),
 		"username": username,
-		"email": email,
+		"email": email.lower(),
 		"password": password
 	}).execute()
 
 	return data
 
 #* Get Passwords
-def getPasswords(obj):
-	data, count = supabase.table('passwords').select('*').eq('userId', obj['id']).execute()
+def getPasswords(userId):
+	data, _ = supabase.table('passwords').select('*').eq('userId', userId).execute()
+	return data[1]
+
+#! Delete Password
+def deletePassword(obj, passwordId):
+	# checking if it exists
+	data, _ = supabase.table('passwords').select("id").eq('userId', obj['id']).eq('id', passwordId).execute()
+
+	if len(data[1]) > 0: # it exists
+		data, _ = supabase.table('passwords').delete().eq('id', passwordId).execute()
+		if len(data[1]) > 0:
+			return data[1][0]
+	else:
+		raise Exception("Password does not exist")
+
+#* Update Password
+def updatePassword(obj, passwordId, update):
+	# checking if it exists
+	data, _ = supabase.table("passwords").select("*").eq('userId', obj['id']).eq('id', passwordId).execute()
+
+	if len(data[0]) > 0:
+		data, _ = supabase.table('passwords').update(update).eq('id', passwordId).execute()
+		print(data)
+		if len(data[1]) > 0:
+			return data[1][0]
+	else:
+		raise Exception("Password does not exist")
+	
+#* Search password
+def searchPassword(obj, query):
+	ids = []
+	for word in query:
+		title_result, _ = supabase.table("passwords").select("id").ilike('title', f'%{word}%').eq('userId', obj['id']).execute()
+		username_result, _ = supabase.table("passwords").select("id").ilike('username', f'%{word}%').eq('userId', obj['id']).execute()
+		email_result, _ = supabase.table("passwords").select("id").ilike('email', f'%{word}%').eq('userId', obj['id']).execute()
+		website_url_result, _ = supabase.table("passwords").select("id").ilike('url', f'%{word}%').eq('userId', obj['id']).execute()
+
+		for result in title_result[1]:
+			ids.append(result['id'])
+		for result in username_result[1]:
+			ids.append(result['id'])
+		for result in email_result[1]:
+			ids.append(result['id'])
+		for result in website_url_result[1]:
+			ids.append(result['id'])
+
+	# getting rid of duplicate ids
+	password_ids = sorted(set(ids))
+
+	# fetching the data of all the ids
+	data = []
+	for password_id in password_ids:
+		result, _ = supabase.table("passwords").select("*").eq('id', password_id).execute()
+		data.append(result[1][0])
+
 	return data

@@ -1,22 +1,23 @@
 from cryptography.fernet import Fernet
-import bcrypt
 import os
+import bcrypt
 
-def encrypt(password):
-  fernet = Fernet(os.getenv('KEY'))
-  return fernet.encrypt(password.encode())
+# Password hasher
+def hashPassword(password):
+  password = password.encode()
+  return (bcrypt.hashpw(password, bcrypt.gensalt(8))).decode()
 
-def decrypt(hash):
-  fernet = Fernet(os.getenv('KEY'))
-  return fernet.decrypt(hash).decode()
+def checkPassword(password, hash):
+  return bcrypt.checkpw(password.encode(), hash.encode())
+
+# Password encrypt er
+def encrypt(password, key):
+  fernet = Fernet(key.encode())
+  return (fernet.encrypt(password.encode())).decode()
+
+def decrypt(password, key):
+  fernet = Fernet(key.encode())
+  return fernet.decrypt(password.encode()).decode()
 
 def generateKey():
-  return (Fernet.generate_key()).decode()[:-1]
-
-#todo: organize and change these names they're annoying
-def hashPw(password):
-  password = password.encode()
-  return (bcrypt.hashpw(password, bcrypt.gensalt(8))).decode() #todo: increase the gensalt rounds?
-
-def checkPw(password, hash):
-  return bcrypt.checkpw(password.encode(), hash.encode())
+  return (Fernet.generate_key()).decode()
