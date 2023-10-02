@@ -22,7 +22,9 @@ def createUser(userId, ip, username, email, hashedPassword, hashKey):
 			"key": hashKey
 		}).execute()
 	except Exception as err:
-		raise Exception(err.code)
+		if err.code == "23505":
+			raise Exception("exists")
+		raise Exception(err)
 
 #* Login user
 def loginUser(ip, username, password):
@@ -55,9 +57,9 @@ def loginUser(ip, username, password):
 				"success": False
 			}).execute()
 
-			raise Exception("Password wrong")
+			raise Exception("wrong-credentials")
 	else:	
-		raise Exception("User does not exist")
+		raise Exception("wrong-credentials")
 
 #* Create Password
 def createPassword(userId, title, url, username, email, password):

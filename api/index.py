@@ -48,9 +48,7 @@ def create_user():
     return jsonify(resp(True, "Successfully created user", session)) # todo: session format has been changed
   except Exception as err:
     print(err)
-    return jsonify(resp(False, "There was an error while trying to create user", {
-      'err': str(err) #! 23505 - already created
-    })), 500
+    return jsonify(resp(False, "There was an error while trying to create user", str(err))), 500
 
 # Login
 @app.route("/api/login", methods=['POST'])
@@ -97,6 +95,8 @@ def create_password():
 
     # verifying session & generated encrypted password
     valid, obj = verifySession(session)
+    print(obj['key'])
+    print(generateKey())
     encryptedPassword = encrypt(body['password'], obj['key'])
 
     if valid:
@@ -208,3 +208,22 @@ def search_passwords():
   except Exception as err:
     print(err)
     return jsonify(resp(False, "There was an error while trying to search passwords", str(err))), 500
+
+# Verifying session
+@app.route("/api/verify-session", methods=['GET'])
+def verify_session():
+  try:
+    session = request.headers.get('authorization').split(' ')[1]
+
+    if not session:
+      raise Exception("Missing session parameter")
+
+    valid, obj = verifySession(session)
+
+    if valid:
+      return jsonify(resp(True, "Session verified")), 200
+    else:
+      raise Exception("not-verified")
+  except Exception as err:
+    print(err)
+    return jsonify(resp(False, "Could not verify session", str(err))), 500
