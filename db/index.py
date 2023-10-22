@@ -23,6 +23,10 @@ def createUser(userId, ip, username, email, hashedPassword, hashKey):
 		}).execute()
 	except Exception as err:
 		if err.code == "23505":
+			if "username" in err.message:
+				raise Exception("exists-username")
+			if "email" in err.message:
+				raise Exception("exists-email")
 			raise Exception("exists")
 		raise Exception(err)
 
