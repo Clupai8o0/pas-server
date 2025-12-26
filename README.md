@@ -1,28 +1,134 @@
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fexamples%2Ftree%2Fmain%2Fpython%2Fflask&demo-title=Flask%20%2B%20Vercel&demo-description=Use%20Flask%202%20on%20Vercel%20with%20Serverless%20Functions%20using%20the%20Python%20Runtime.&demo-url=https%3A%2F%2Fflask-python-template.vercel.app%2F&demo-image=https://assets.vercel.com/image/upload/v1669994156/random/flask.png)
+# PAS Server
+Flask API for a password manager that handles users, sessions, and encrypted password records backed by Supabase.
 
-# Flask + Vercel
+## What it does
+- Creates user accounts and issues JWT-based sessions
+- Stores and retrieves password entries for authenticated users
+- Supports update/delete/search workflows for saved passwords
+- Logs login attempts to a dedicated table
 
-This example shows how to use Flask 2 on Vercel with Serverless Functions using the [Python Runtime](https://vercel.com/docs/concepts/functions/serverless-functions/runtimes/python).
+## Key features
+- Auth & sessions: create-user and login endpoints; JWTs include a 3-day expiry
+- Password vault: create/get/update/delete password records scoped to a user
+- Search: case-insensitive search across title, username, email, and URL fields
+- Data protection: bcrypt hashing for user passwords; Fernet encryption for stored password values
+- Supabase persistence: uses `users`, `passwords`, and `logins` tables via the Supabase Python SDK
+- Consistent responses: JSON shape `{success, msg, data}` from `lib/response.py`
 
-## Demo
+## Tech stack
+- Python
+- Flask + Flask-Cors
+- Supabase Python SDK
+- PyJWT
+- bcrypt + cryptography (Fernet)
+- python-dotenv
+- Vercel serverless functions (via `vercel.json` rewrite)
 
-https://flask-python-template.vercel.app/
+## Architecture overview
+The Flask app lives in `api/index.py`. Route handlers call helper modules in `lib/` for crypto, sessions, and response formatting, and `db/index.py` for Supabase queries.
 
-## How it Works
+```text
+Client
+  |
+  v
+Flask routes (api/index.py)
+  |-- lib/session.py (JWT)
+  |-- lib/encrypter.py (bcrypt/Fernet)
+  |-- lib/response.py (response shape)
+  v
+db/index.py -> Supabase tables: users, passwords, logins
+```
 
-This example uses the Web Server Gateway Interface (WSGI) with Flask to enable handling requests on Vercel with Serverless Functions.
+## Getting started (local)
 
-## Running Locally
+### Prerequisites
+- Python environment with pip
+- Vercel CLI (for local dev via `vercel dev`)
+
+### Install
+```bash
+pip install -r requirements.txt
+```
+
+### Environment variables
+These are required and loaded via `python-dotenv` in `api/index.py`.
 
 ```bash
-npm i -g vercel
+SUPABASE_URL=...
+SUPABASE_KEY=...
+SECRET=...
+```
+
+### Run
+```bash
 vercel dev
 ```
 
-Your Flask application is now available at `http://localhost:3000`.
+## Usage
+Set a base URL for your environment:
 
-## One-Click Deploy
+```bash
+BASE_URL=http://localhost:3000
+```
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=vercel-examples):
+Create a user:
+```bash
+curl -X POST "$BASE_URL/api/create-user" \
+  -H "Content-Type: application/json" \
+  -d '{"ip":"127.0.0.1","email":"user@example.com","username":"alice","password":"secret"}'
+```
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fexamples%2Ftree%2Fmain%2Fpython%2Fflask&demo-title=Flask%20%2B%20Vercel&demo-description=Use%20Flask%202%20on%20Vercel%20with%20Serverless%20Functions%20using%20the%20Python%20Runtime.&demo-url=https%3A%2F%2Fflask-python-template.vercel.app%2F&demo-image=https://assets.vercel.com/image/upload/v1669994156/random/flask.png)
+Log in:
+```bash
+curl -X POST "$BASE_URL/api/login" \
+  -H "Content-Type: application/json" \
+  -d '{"ip":"127.0.0.1","username":"alice","password":"secret"}'
+```
+
+Use the returned session token in the `Authorization` header (the code reads the second space-delimited value):
+
+```bash
+TOKEN=...
+curl -X POST "$BASE_URL/api/create-password" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: <type> $TOKEN" \
+  -d '{"title":"GitHub","username":"alice","email":"user@example.com","password":"vault-secret","url":"https://github.com"}'
+```
+
+Fetch saved passwords:
+```bash
+curl -X GET "$BASE_URL/api/get-passwords" \
+  -H "Authorization: <type> $TOKEN"
+```
+
+Search passwords:
+```bash
+curl -X GET "$BASE_URL/api/search-passwords?query=github%20alice" \
+  -H "Authorization: <type> $TOKEN"
+```
+
+Update a password:
+```bash
+curl -X PUT "$BASE_URL/api/update-password" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: <type> $TOKEN" \
+  -d '{"id":"<password-id>","title":"GitHub (work)"}'
+```
+
+Delete a password:
+```bash
+curl -X DELETE "$BASE_URL/api/delete-password?id=<password-id>" \
+  -H "Authorization: <type> $TOKEN"
+```
+
+Verify a session:
+```bash
+curl -X GET "$BASE_URL/api/verify-session" \
+  -H "Authorization: <type> $TOKEN"
+```
+
+## Testing / Quality
+No automated tests, linting, or typecheck configs are present in this repository.
+
+## Deployment
+`vercel.json` rewrites all routes to `/api/index`, so the Flask app is deployed as a Vercel Serverless Function.
